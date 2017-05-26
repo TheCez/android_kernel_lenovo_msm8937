@@ -35,6 +35,12 @@
 modules.builtin
 Module.symvers
 *.dwo
+zImage*
+*.zip
+*.ko
+*.save
+*.save.*
+ipa_common
 
 #
 # Top-level generic files
