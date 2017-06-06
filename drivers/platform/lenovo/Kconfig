@@ -1,0 +1,21 @@
+config MACH_LENOVO_MSM8937
+	bool "Lenovo MSM8937"
+	depends on ARCH_MSM8937
+	help
+	  Support for MSM8937 Lenovo variants
+
+menu "Lenovo board selection"
+
+config MACH_LENOVO_KARATE
+	bool "karate board"
+	select MACH_LENOVO_MSM8937
+	help
+	  Support for Lenovo K6/Power karate
+
+config MACH_LENOVO_KARATEP
+        bool "karatep board"
+        select MACH_LENOVO_MSM8937
+        help
+          Support for Lenovo K6 Plus/Note karatep
+
+endmenu
