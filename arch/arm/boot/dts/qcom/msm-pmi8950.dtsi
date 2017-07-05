@@ -203,7 +203,7 @@
 			#size-cells = <1>;
 
 			qcom,iterm-ma = <100>;
-			qcom,fastchg-current-ma = <2000>;
+                        qcom,fastchg-current-ma = <2000>;
 			qcom,float-voltage-mv = <4200>;
 			qcom,resume-delta-mv = <50>;
 			qcom,chg-inhibit-fg;
@@ -217,7 +217,7 @@
 			qcom,force-aicl-rerun;
 			qcom,aicl-rerun-period-s = <180>;
 			qcom,autoadjust-vfloat;
-			qcom,charge-unknown-battery;
+                        qcom,charge-unknown-battery;
 
 			qcom,chgr@1000 {
 				reg = <0x1000 0x100>;
