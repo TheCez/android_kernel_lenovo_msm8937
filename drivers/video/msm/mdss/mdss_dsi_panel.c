@@ -28,8 +28,6 @@
 #include "mdss_dba_utils.h"
 #endif
 
-#include <linux/hardware_info.h>
-
 #define DT_CMD_HDR 6
 #define MIN_REFRESH_RATE 48
 #define DEFAULT_MDP_TRANSFER_TIME 14000
@@ -2910,7 +2908,6 @@ error:
 	return -EINVAL;
 }
 
-extern char Lcm_name[HARDWARE_MAX_ITEM_LENGTH];
 int mdss_dsi_panel_init(struct device_node *node,
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 	int ndx)
@@ -2935,7 +2932,6 @@ int mdss_dsi_panel_init(struct device_node *node,
 	} else {
 		pr_info("%s: Panel Name = %s\n", __func__, panel_name);
 		strlcpy(&pinfo->panel_name[0], panel_name, MDSS_MAX_PANEL_LEN);
-	        strcpy(Lcm_name,panel_name);
 	}
 	rc = mdss_panel_parse_dt(node, ctrl_pdata);
 	if (rc) {

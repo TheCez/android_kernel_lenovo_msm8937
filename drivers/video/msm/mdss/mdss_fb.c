@@ -56,8 +56,6 @@
 #include "mdss_mdp.h"
 #include "mdp3_ctrl.h"
 
-#include <linux/hardware_info.h>
-
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
 #else
@@ -639,17 +637,6 @@ static ssize_t mdss_fb_get_panel_info(struct device *dev,
 	return ret;
 }
 
-extern char Lcm_name[HARDWARE_MAX_ITEM_LENGTH];
-
-static ssize_t mdss_get_panel_name(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	ssize_t ret;
-
-	ret = snprintf(buf, PAGE_SIZE, Lcm_name);
-
-	return ret;
-}
-
 static ssize_t mdss_fb_get_panel_status(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -856,7 +843,6 @@ static DEVICE_ATTR(idle_time, S_IRUGO | S_IWUSR | S_IWGRP,
 	mdss_fb_get_idle_time, mdss_fb_set_idle_time);
 static DEVICE_ATTR(idle_notify, S_IRUGO, mdss_fb_get_idle_notify, NULL);
 static DEVICE_ATTR(msm_fb_panel_info, S_IRUGO, mdss_fb_get_panel_info, NULL);
-static DEVICE_ATTR(lcd_name, S_IRUGO | S_IWUSR | S_IWGRP,  mdss_get_panel_name, NULL);
 static DEVICE_ATTR(msm_fb_src_split_info, S_IRUGO, mdss_fb_get_src_split_info,
 	NULL);
 static DEVICE_ATTR(msm_fb_thermal_level, S_IRUGO | S_IWUSR,
@@ -874,7 +860,6 @@ static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_idle_time.attr,
 	&dev_attr_idle_notify.attr,
 	&dev_attr_msm_fb_panel_info.attr,
-	&dev_attr_lcd_name.attr,
 	&dev_attr_msm_fb_src_split_info.attr,
 	&dev_attr_msm_fb_thermal_level.attr,
 	&dev_attr_msm_fb_panel_status.attr,
