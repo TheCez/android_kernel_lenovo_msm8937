@@ -167,6 +167,7 @@ enum msm_actuator_write_type {
 enum msm_actuator_i2c_operation {
 	MSM_ACT_WRITE = 0,
 	MSM_ACT_POLL,
+	MSM_ACT_READ_SET,
 };
 
 enum actuator_type {
@@ -174,6 +175,7 @@ enum actuator_type {
 	ACTUATOR_PIEZO,
 	ACTUATOR_HVCM,
 	ACTUATOR_BIVCM,
+	ACTUATOR_MOT_HVCM,
 };
 
 enum msm_flash_driver_type {
@@ -189,6 +191,8 @@ enum msm_flash_cfg_type_t {
 	CFG_FLASH_OFF,
 	CFG_FLASH_LOW,
 	CFG_FLASH_HIGH,
+        CFG_FLASH_READ_I2C,
+	CFG_FLASH_WRITE_I2C,
 };
 
 enum msm_ir_led_cfg_type_t {

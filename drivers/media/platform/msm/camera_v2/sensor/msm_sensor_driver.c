@@ -17,7 +17,9 @@
 #include "camera.h"
 #include "msm_cci.h"
 #include "msm_camera_dt_util.h"
-
+#ifdef CONFIG_CAMERA_WT_FACTORY_SUPPORTED
+#include <linux/hardware_info.h>
+#endif
 /* Logging macro */
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
@@ -501,6 +503,7 @@ static int32_t msm_sensor_get_power_down_settings(void *setting,
 			slave_info->power_setting_array.power_setting);
 		if (rc < 0) {
 			pr_err("failed");
+                        kfree(power_info->power_setting);
 			kfree(pd);
 			return -EFAULT;
 		}
@@ -698,6 +701,7 @@ int32_t msm_sensor_driver_probe(void *setting,
 		slave_info->sensor_id_info = slave_info32->sensor_id_info;
 
 		slave_info->slave_addr = slave_info32->slave_addr;
+		slave_info->slave_addr2 = slave_info32->slave_addr2;
 		slave_info->power_setting_array.size =
 			slave_info32->power_setting_array.size;
 		slave_info->power_setting_array.size_down =
@@ -817,8 +821,9 @@ int32_t msm_sensor_driver_probe(void *setting,
 
 
 	camera_info = kzalloc(sizeof(struct msm_camera_slave_info), GFP_KERNEL);
-	if (!camera_info)
-		goto free_slave_info;
+	if (!camera_info) {
+		pr_err("failed: no memory slave_info %p", camera_info);
+		goto free_power_settings;
 
 	s_ctrl->sensordata->slave_info = camera_info;
 
@@ -827,6 +832,7 @@ int32_t msm_sensor_driver_probe(void *setting,
 	camera_info->sensor_id_reg_addr =
 		slave_info->sensor_id_info.sensor_id_reg_addr;
 	camera_info->sensor_id = slave_info->sensor_id_info.sensor_id;
+	camera_info->sensor_id2 = slave_info->sensor_id_info.sensor_id2;
 	camera_info->sensor_id_mask = slave_info->sensor_id_info.sensor_id_mask;
 
 	/* Fill CCI master, slave address and CCI default params */
@@ -884,6 +890,8 @@ CSID_TG:
 	s_ctrl->sensordata->eeprom_name = slave_info->eeprom_name;
 	s_ctrl->sensordata->actuator_name = slave_info->actuator_name;
 	s_ctrl->sensordata->ois_name = slave_info->ois_name;
+	/* Save Sensor Info */
+	s_ctrl->sensordata->cam_slave_info = slave_info;
 	/*
 	 * Update eeporm subdevice Id by input eeprom name
 	 */
@@ -915,6 +923,14 @@ CSID_TG:
 	}
 
 	pr_err("%s probe succeeded", slave_info->sensor_name);
+
+#ifdef CONFIG_CAMERA_WT_FACTORY_SUPPORTED
+	if (slave_info->camera_id == 0) {
+		hardwareinfo_set_prop(HARDWARE_BACK_CAM,s_ctrl->sensordata->sensor_name);
+	} else {
+		hardwareinfo_set_prop(HARDWARE_FRONT_CAM,s_ctrl->sensordata->sensor_name);
+	}
+#endif
 
 	/*
 	 * Update the subdevice id of flash-src based on availability in kernel.
@@ -963,9 +979,6 @@ CSID_TG:
 
 	s_ctrl->msm_sd.sd.entity.flags = mount_pos | MEDIA_ENT_FL_DEFAULT;
 
-	/*Save sensor info*/
-	s_ctrl->sensordata->cam_slave_info = slave_info;
-
 	msm_sensor_fill_sensor_info(s_ctrl, probed_info, entity_name);
 
 	/*
@@ -979,6 +992,9 @@ camera_power_down:
 	s_ctrl->func_tbl->sensor_power_down(s_ctrl);
 free_camera_info:
 	kfree(camera_info);
+free_power_settings:
+       kfree(s_ctrl->sensordata->power_info.power_setting);
+       kfree(s_ctrl->sensordata->power_info.power_down_setting);
 free_slave_info:
 	kfree(slave_info);
 	return rc;

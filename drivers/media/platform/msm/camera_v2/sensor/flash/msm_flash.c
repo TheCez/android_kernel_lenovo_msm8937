@@ -20,7 +20,7 @@
 #include "msm_cci.h"
 
 #undef CDBG
-#define CDBG(fmt, args...) pr_debug(fmt, ##args)
+#define CDBG(fmt, args...) pr_err(fmt, ##args)
 
 DEFINE_MSM_MUTEX(msm_flash_mutex);
 
@@ -150,12 +150,13 @@ static int32_t msm_flash_i2c_write_table(
 	conf_array.delay = settings->delay;
 	conf_array.reg_setting = settings->reg_setting_a;
 	conf_array.size = settings->size;
+	flash_ctrl->flash_i2c_client.addr_type = conf_array.addr_type;
 
 	/* Validate the settings size */
 	if((!conf_array.size) || (conf_array.size > MAX_I2C_REG_SET)) {
 		pr_err("failed: invalid size %d", conf_array.size);
 		return -EINVAL;
-	}
+        }
 
 	return flash_ctrl->flash_i2c_client.i2c_func_tbl->i2c_write_table(
 		&flash_ctrl->flash_i2c_client, &conf_array);
@@ -282,6 +283,29 @@ static int32_t msm_flash_i2c_init(
 			flash_ctrl->power_info.power_down_setting_size);
 		rc = -EINVAL;
 		goto msm_flash_i2c_init_fail;
+        }
+
+	rc = msm_camera_fill_vreg_params(
+			flash_ctrl->power_info.cam_vreg,
+			flash_ctrl->power_info.num_vreg,
+			flash_ctrl->power_info.power_setting,
+			flash_ctrl->power_info.power_setting_size);
+	if (rc < 0) {
+		pr_err("%s:%d failed in camera_fill_vreg_params  rc %d",
+				__func__, __LINE__, rc);
+		return rc;
+	}
+
+	/* Parse and fill vreg params for powerdown settings*/
+	rc = msm_camera_fill_vreg_params(
+		flash_ctrl->power_info.cam_vreg,
+		flash_ctrl->power_info.num_vreg,
+		flash_ctrl->power_info.power_down_setting,
+		flash_ctrl->power_info.power_down_setting_size);
+	if (rc < 0) {
+		pr_err("%s:%d failed msm_camera_fill_vreg_params for PDOWN rc %d",
+			__func__, __LINE__, rc);
+		return rc;
 	}
 
 	rc = msm_camera_power_up(&flash_ctrl->power_info,
@@ -377,6 +401,7 @@ static int32_t msm_flash_i2c_release(
 			__func__, __LINE__);
 		return -EINVAL;
 	}
+	flash_ctrl->flash_state = MSM_CAMERA_FLASH_RELEASE;
 	return 0;
 }
 
@@ -399,6 +424,21 @@ static int32_t msm_flash_off(struct msm_flash_ctrl_t *flash_ctrl,
 
 	CDBG("Exit\n");
 	return 0;
+}
+static int32_t msm_flash_i2c_read_setting_array(
+	struct msm_flash_ctrl_t *flash_ctrl,
+	struct msm_flash_cfg_data_t *flash_data)
+{
+	if (!flash_data->cfg.read_config) {
+		pr_err("%s:%d failed: Null pointer\n", __func__, __LINE__);
+		return -EFAULT;
+	}
+
+	return flash_ctrl->flash_i2c_client.i2c_func_tbl->i2c_read(
+		&flash_ctrl->flash_i2c_client,
+		flash_data->cfg.read_config->reg_addr,
+		&flash_data->cfg.read_config->data,
+		MSM_CAMERA_I2C_BYTE_DATA);
 }
 
 static int32_t msm_flash_i2c_write_setting_array(
@@ -583,12 +623,12 @@ static int32_t msm_flash_low(
 		if (flash_ctrl->torch_trigger[i]) {
 			max_current = flash_ctrl->torch_max_current[i];
 			if (flash_data->flash_current[i] >= 0 &&
-				flash_data->flash_current[i] <
+				flash_data->flash_current[i] <=
 				max_current) {
 				curr = flash_data->flash_current[i];
 			} else {
 				curr = flash_ctrl->torch_op_current[i];
-				pr_debug("LED current clamped to %d\n",
+				CDBG("LED current clamped to %d\n",
 					curr);
 			}
 			CDBG("low_flash_current[%d] = %d", i, curr);
@@ -620,12 +660,12 @@ static int32_t msm_flash_high(
 		if (flash_ctrl->flash_trigger[i]) {
 			max_current = flash_ctrl->flash_max_current[i];
 			if (flash_data->flash_current[i] >= 0 &&
-				flash_data->flash_current[i] <
+				flash_data->flash_current[i] <=
 				max_current) {
 				curr = flash_data->flash_current[i];
 			} else {
 				curr = flash_ctrl->flash_op_current[i];
-				pr_debug("LED flash_current[%d] clamped %d\n",
+				CDBG("LED flash_current[%d] clamped %d\n",
 					i, curr);
 			}
 			CDBG("high_flash_current[%d] = %d", i, curr);
@@ -691,6 +731,16 @@ static int32_t msm_flash_config(struct msm_flash_ctrl_t *flash_ctrl,
 	case CFG_FLASH_HIGH:
 		if (flash_ctrl->flash_state == MSM_CAMERA_FLASH_INIT)
 			rc = flash_ctrl->func_tbl->camera_flash_high(
+				flash_ctrl, flash_data);
+		break;
+	case CFG_FLASH_READ_I2C:
+		if (flash_ctrl->flash_state == MSM_CAMERA_FLASH_INIT)
+			rc = flash_ctrl->func_tbl->camera_flash_read(
+				flash_ctrl, flash_data);
+		break;
+	case CFG_FLASH_WRITE_I2C:
+		if (flash_ctrl->flash_state == MSM_CAMERA_FLASH_INIT)
+			rc = flash_ctrl->func_tbl->camera_flash_write(
 				flash_ctrl, flash_data);
 		break;
 	default:
@@ -947,6 +997,8 @@ static int32_t msm_flash_get_dt_data(struct device_node *of_node,
 	struct msm_flash_ctrl_t *fctrl)
 {
 	int32_t rc = 0;
+	struct msm_camera_power_ctrl_t *power_info =
+		&fctrl->power_info;
 
 	CDBG("called\n");
 
@@ -997,9 +1049,20 @@ static int32_t msm_flash_get_dt_data(struct device_node *of_node,
 	}
 
 	if (fctrl->flash_driver_type == FLASH_DRIVER_DEFAULT)
-		fctrl->flash_driver_type = FLASH_DRIVER_GPIO;
+/*+Begin. wangdw10. Change flash type to PMIC for karate/karateplus project.2016.06.23*/
+		fctrl->flash_driver_type = FLASH_DRIVER_PMIC;
+/*+End.*/
 	CDBG("%s:%d fctrl->flash_driver_type = %d", __func__, __LINE__,
 		fctrl->flash_driver_type);
+
+        /* Read the regulator information from device tree */
+        rc = msm_camera_get_dt_vreg_data(of_node, &power_info->cam_vreg,
+                        &power_info->num_vreg);
+        if (rc < 0) {
+                pr_err("%s:%d msm_camera_get_dt_vreg_data failed rc %d\n",
+                        __func__, __LINE__, rc);
+                return rc;
+        }
 
 	return rc;
 }
@@ -1039,6 +1102,8 @@ static long msm_flash_subdev_do_ioctl(
 		case CFG_FLASH_OFF:
 		case CFG_FLASH_LOW:
 		case CFG_FLASH_HIGH:
+		case CFG_FLASH_READ_I2C:
+		case CFG_FLASH_WRITE_I2C:
 			flash_data.cfg.settings = compat_ptr(u32->cfg.settings);
 			break;
 		case CFG_FLASH_INIT:
@@ -1224,6 +1289,8 @@ static struct msm_flash_table msm_i2c_flash_table = {
 		.camera_flash_off = msm_flash_i2c_write_setting_array,
 		.camera_flash_low = msm_flash_i2c_write_setting_array,
 		.camera_flash_high = msm_flash_i2c_write_setting_array,
+		.camera_flash_read = msm_flash_i2c_read_setting_array,
+		.camera_flash_write = msm_flash_i2c_write_setting_array,
 	},
 };
 
