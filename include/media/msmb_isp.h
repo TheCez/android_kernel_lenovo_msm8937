@@ -37,7 +37,7 @@ struct msm_isp32_event_data32 {
 	union {
 		struct msm_isp_stats_event stats;
 		struct msm_isp_buf_event buf_done;
-		struct msm_isp32_error_info error_info;
+//		struct msm_isp32_error_info error_info;
 	} u;
 };
 
