@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2015, The lenovo mobile Inc. All rights reserved.
  *
@@ -14,15 +13,132 @@
 
 
 #include "msm8937.dtsi"
+#include "msm8937-pinctrl-lenovo.dtsi"
 #include "msm8937-pmi8950-qrd-sku1.dtsi"
 
 / {
 	aliases {
 		fpc1020 = &fpc1020;
+                i2c8 = &i2c_8;
 	};
 };
 
 &soc {
+	led_flash1: qcom,camera-flash {
+		cell-index = <0>;
+		compatible = "qcom,camera-flash";
+		qcom,flash-type = <1>;
+		qcom,flash-source = <&pmi8950_flash0 &pmi8950_flash1>;
+		qcom,torch-source = <&pmi8950_torch0 &pmi8950_torch1>;
+		qcom,switch-source = <&pmi8950_switch>;
+	};
+
+&mdss_dsi0 {
+        qcom,regulator-ldo-mode;
+        qcom,platform-regulator-settings = [02 09 03 00
+				20 00 01];
+}
+
+&tlmm {
+	pmx_mdss: pmx_mdss {
+		mdss_dsi_active: mdss_dsi_active {
+			mux {
+				pins = "gpio60";
+			};
+			config {
+				pins = "gpio60";
+			};
+		};
+		mdss_dsi_suspend: mdss_dsi_suspend {
+			mux {
+				pins = "gpio60";
+			};
+			config {
+				pins = "gpio60";
+			};
+		};
+	};
+};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		other_ext_mem: other_ext_region@0 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0x0 0x84A00000 0x0 0x1E00000>;
+		};
+
+	qcom,rmtfs_sharedmem@00000000 {
+		compatible = "qcom,sharedmem-uio";
+		reg = <0x00000000 0x00E0000>;
+		reg-names = "rmtfs";
+		qcom,client-id = <0x00000001>;
+	};
+
+	i2c_8: i2c@7af8000 { /* BLSP2 QUP4 */
+		compatible = "qcom,i2c-msm-v2";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg-names = "qup_phys_addr";
+		reg = <0x7af8000 0x600>;
+		interrupt-names = "qup_irq";
+		interrupts = <0 302 0>;
+		qcom,clk-freq-out = <400000>;
+		qcom,clk-freq-in  = <19200000>;
+		clock-names = "iface_clk", "core_clk";
+		clocks = <&clock_gcc clk_gcc_blsp2_ahb_clk>,
+			 <&clock_gcc clk_gcc_blsp2_qup4_i2c_apps_clk>;
+
+		pinctrl-names = "i2c_active", "i2c_sleep";
+		pinctrl-0 = <&i2c_8_active>;
+		pinctrl-1 = <&i2c_8_sleep>;
+		qcom,noise-rjct-scl = <0>;
+		qcom,noise-rjct-sda = <0>;
+		qcom,master-id = <84>;
+		dmas = <&dma_blsp2 10 64 0x20000020 0x20>,
+			<&dma_blsp2 11 32 0x20000020 0x20>;
+		dma-names = "tx", "rx";
+	};
+
+&spi_3 { /* BLSP1 QUP3 */
+	spi-max-frequency = <16000000>;
+};
+
+        usb_otg: usb@78db000 {
+                qcom,floated-charger-enable = <1>;
+              };
+
+	qcom_seecom: qseecom@84A00000 {
+		compatible = "qcom,qseecom";
+		reg = <0x84A00000 0x1900000>;
+		reg-names = "secapp-region";
+		qcom,hlos-num-ce-hw-instances = <1>;
+		qcom,hlos-ce-hw-instance = <0>;
+		qcom,qsee-ce-hw-instance = <0>;
+		qcom,disk-encrypt-pipe-pair = <2>;
+		qcom,support-fde;
+		qcom,appsbl-qseecom-support;
+		qcom,msm-bus,name = "qseecom-noc";
+		qcom,msm-bus,num-cases = <4>;
+		qcom,msm-bus,num-paths = <1>;
+		qcom,support-bus-scaling;
+		qcom,msm-bus,vectors-KBps =
+			<55 512 0 0>,
+			<55 512 0 0>,
+			<55 512 120000 1200000>,
+			<55 512 393600 3936000>;
+		clocks = <&clock_gcc clk_crypto_clk_src>,
+			 <&clock_gcc clk_gcc_crypto_clk>,
+			 <&clock_gcc clk_gcc_crypto_ahb_clk>,
+			 <&clock_gcc clk_gcc_crypto_axi_clk>;
+		clock-names = "core_clk_src", "core_clk",
+				"iface_clk", "bus_clk";
+		qcom,ce-opp-freq = <100000000>;
+	};
+
 	sound {
 		qcom,model = "msm8952-sku1-snd-card";
 		qcom,msm-mbhc-hphl-swh = <0x1>;
@@ -116,6 +232,26 @@
 		};
 	};
 
+	pmx_mdss: pmx_mdss {
+		mdss_dsi_active: mdss_dsi_active {
+			mux {
+				pins = "gpio60";
+			};
+			config {
+				pins = "gpio60";
+			};
+		};
+        };
+		mdss_dsi_suspend: mdss_dsi_suspend {
+			mux {
+				pins = "gpio60";
+			};
+			config {
+				pins = "gpio60";
+			};
+		};
+	};
+
 	pmx_sgm3710 {
 		sgm3710_act: sgm3710_act {
 			mux {
@@ -161,8 +297,7 @@
 	};
 };
 
-&i2c_3 {
-	status = "ok";
+i2c@78b7000  {
 	focaltech@38 {
 		compatible = "focaltech,fts";
 		reg = <0x38>;
@@ -204,7 +339,6 @@
 	};
 
 	focaltech@3e {
-		status = "disabled";
 		compatible = "focaltech,fts";
 		reg = <0x3e>;
 		interrupt-parent = <&tlmm>;
@@ -335,3 +469,117 @@
 	};
 };
 
+&spmi_bus {
+	qcom,pmi8950@3 {
+		labibb: qpnp-labibb-regulator {
+			ibb_regulator: qcom,ibb@dc00 {
+				/delete-property/
+					qcom,qpnp-ibb-use-default-voltage;
+				qcom,qpnp-ibb-init-lcd-voltage = <5500000>;
+			};
+
+			lab_regulator: qcom,lab@de00 {
+				/delete-property/
+					qcom,qpnp-ibb-use-default-voltage;
+				qcom,qpnp-ibb-init-lcd-voltage = <5500000>;
+			};
+		};
+		wled: qcom,leds@d800 {
+			qcom,en-cabc;
+		};
+	};
+};
+
+&spmi_bus {
+	qcom,pm8937@0 {
+		qcom,power-on@800 {
+			qcom,pon_1 {
+				qcom,pon-type = <0>;
+				qcom,pull-up = <1>;
+				linux,code = <116>;
+				qcom,support-reset = <1>;
+				qcom,s1-timer = <6720>;
+				qcom,s2-timer = <2000>;
+				qcom,s2-type = <7>;
+			};
+		};
+        };
+
+	qcom,pmi8950@2 {
+		qcom,leds@a100 {
+			status = "okay";
+			qcom,led_mpp_2 {
+				label = "mpp";
+				linux,name = "green";
+				linux,default-trigger = "none";
+				qcom,default-state = "off";
+				qcom,max-current = <5>;
+				qcom,current-setting = <5>;
+				qcom,id = <6>;
+				qcom,mode = "manual";
+				qcom,source-sel = <1>;
+				qcom,mode-ctrl = <0x60>;
+			};
+		};
+	};
+
+&pmi8937_charger {
+        qcom,charge-unknown-battery;
+	};
+
+&pmi8950_charger {
+        qcom,charge-unknown-battery;
+        qcom,fastchg-current-ma = <2000>;
+        qcom,resume-delta-mv = <50>;
+        qcom,thermal-mitigation = <2000 1000 900 600>;
+        /delete-property/ qcom,parallel-usb-min-current-ma;
+        /delete-property/ qcom,parallel-usb-9v-min-current-ma;
+        /delete-property/ qcom,parallel-allowed-lowering-ma;
+        };
+
+&pmi8950_fg {
+         qcom,resume-soc = <99>;
+	 qcom,vbat-estimate-diff-mv = <100>;
+};
+
+&pmi8950_flash0 {
+         qcom,current = <600>;
+};
+
+&pmi8950_flash1 {
+         qcom,current = <600>;
+};
+
+&pmi8950_switch {
+         qcom,current = <600>;
+};
+
+&pmi_haptic {
+         qcom,vmax-mv = <2800>;
+};
+
+&pm8937_rtc {
+	 qcom,qpnp-rtc-alarm-pwrup = <1>;
+};
+
+&pmx_mdss {
+	mdss_dsi_active {
+		mux {
+			pins = "gpio61";
+		};
+
+		config {
+			pins = "gpio61";
+		};
+	};
+
+	mdss_dsi_suspend {
+		mux {
+			pins = "gpio61";
+		};
+
+		config {
+			pins = "gpio61";
+		};
+	};
+};
